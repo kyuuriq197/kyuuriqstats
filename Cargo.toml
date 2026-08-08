@@ -1,0 +1,9 @@
+[package]
+name = "kyuuriqfetch"
+version = "0.2.0"
+edition = "2024"
+
+[dependencies]
+sysinfo = "0.30"
+colored = "2"
+crossterm = "0.28"
