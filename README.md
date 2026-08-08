@@ -2,8 +2,6 @@
 
 Stable releases / Pre-releases and beta versions are published only on GitHub. 
 
-                                    sudo pacman  -S kyuuriqstats
-
 # kyuuriqstats
 
 A simple system information fetcher written in Rust.
@@ -22,6 +20,10 @@ A simple system information fetcher written in Rust.
 - Packages
 - Uptime
 - Disks
+
+## Start 
+
+Add config.fish kyuuriqstats/fetch to the end
 
 ## Requirements
 
