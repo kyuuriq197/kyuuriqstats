@@ -1,8 +1,8 @@
 ## Warning
 
-Pre-releases and beta versions are published on GitHub. Stable releases are available on the AUR.
+Stable releases / Pre-releases and beta versions are published only on GitHub. 
 
-                                    yay -S kyuuriqstats
+                                    sudo pacman  -S kyuuriqstats
 
 # kyuuriqstats
 
