@@ -1,7 +1,8 @@
 [package]
 name = "kyuuriqfetch"
-version = "0.2.0"
+version = "0.2.1"
 edition = "2024"
+license = "MIT"
 
 [dependencies]
 sysinfo = "0.30"
