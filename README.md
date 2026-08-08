@@ -2,9 +2,7 @@
 
 Pre-releases and beta versions are published on GitHub. Stable releases are available on the AUR.
 
-##Instaling
-
-yay -S kyuuriqstats
+                                    yay -S kyuuriqstats
 
 # kyuuriqstats
 
