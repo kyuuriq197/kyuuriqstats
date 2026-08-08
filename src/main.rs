@@ -12,10 +12,10 @@ fn get_desktop_environment() -> String {
     ];
 
     for var in vars {
-        if let Ok(value) = env::var(var) {
-            if !value.is_empty() {
-                return value;
-            }
+        if let Ok(value) = env::var(var)
+            && !value.is_empty()
+        {
+            return value;
         }
     }
 
@@ -23,80 +23,128 @@ fn get_desktop_environment() -> String {
 }
 
 fn get_display() -> String {
-    let output = Command::new("niri")
-        .args(["msg", "outputs"])
-        .output();
+    // Niri
+    if let Ok(output) = Command::new("niri").args(["msg", "outputs"]).output()
+        && output.status.success()
+    {
+        let text = String::from_utf8_lossy(&output.stdout);
 
-    match output {
-        Ok(output) => {
-            let text = String::from_utf8_lossy(&output.stdout);
+        let mut monitor = "Unknown".to_string();
+        let mut resolution = "Unknown".to_string();
+        let mut refresh_rate = "Unknown".to_string();
 
-            let mut monitor = "Unknown".to_string();
-            let mut resolution = "Unknown".to_string();
-            let mut refresh_rate = "Unknown".to_string();
+        for line in text.lines() {
+            let line = line.trim();
 
-            for line in text.lines() {
-                let line = line.trim();
+            if line.starts_with("Output \"")
+                && let Some(name) = line.strip_prefix("Output \"")
+                && let Some(name) = name.split('"').next()
+            {
+                monitor = name.to_string();
+            }
 
-                // Monitor name
-                if line.starts_with("Output \"") {
-                    if let Some(name) = line.strip_prefix("Output \"") {
-                        if let Some(name) = name.split('"').next() {
-                            monitor = name
-                                .replace("Microstep ", "")
-                                .split(" CA8A402501940")
-                                .next()
-                                .unwrap_or(name)
-                                .to_string();
-                        }
-                    }
-                }
+            if line.starts_with("Current mode:")
+                && let Some(value) = line.strip_prefix("Current mode:")
+            {
+                let value = value.trim();
 
-                // Current resolution and refresh rate
-                if line.starts_with("Current mode:") {
-                    if let Some(value) = line.strip_prefix("Current mode:") {
-                        let value = value.trim();
+                if let Some((res, hz)) = value.split_once(" @ ") {
+                    resolution = res.to_string();
 
-                        if let Some((res, hz)) = value.split_once(" @ ") {
-                            resolution = res.to_string();
-
-                            if let Some(hz) = hz.strip_suffix(" Hz") {
-                                if let Ok(hz) = hz.parse::<f64>() {
-                                    refresh_rate = format!("{:.0}Hz", hz);
-                                }
-                            }
-                        }
+                    if let Some(hz) = hz.strip_suffix(" Hz")
+                        && let Ok(hz) = hz.parse::<f64>()
+                    {
+                        refresh_rate = format!("{:.0}Hz", hz);
                     }
                 }
             }
-
-            format!(
-                "{} — {} @ {}",
-                monitor, resolution, refresh_rate
-            )
         }
 
-        Err(_) => "Unknown".to_string(),
+        if monitor != "Unknown" || resolution != "Unknown" {
+            return format!("{} — {} @ {}", monitor, resolution, refresh_rate);
+        }
     }
+
+    // Wayland / wlroots
+    if let Ok(output) = Command::new("wlr-randr").output()
+        && output.status.success()
+    {
+        let text = String::from_utf8_lossy(&output.stdout);
+
+        let mut monitor = "Unknown".to_string();
+        let mut resolution = "Unknown".to_string();
+        let mut refresh_rate = "Unknown".to_string();
+
+        for line in text.lines() {
+            if !line.starts_with(' ') && !line.is_empty() {
+                monitor = line
+                    .split_whitespace()
+                    .next()
+                    .unwrap_or("Unknown")
+                    .to_string();
+            }
+
+            let trimmed = line.trim();
+
+            if trimmed.contains("current") {
+                let parts: Vec<&str> = trimmed.split_whitespace().collect();
+
+                if let Some(mode) = parts.first()
+                    && mode.contains('x')
+                {
+                    resolution = (*mode).to_string();
+                }
+
+                for part in &parts {
+                    if let Some(hz) = part.strip_suffix("Hz") {
+                        refresh_rate = format!("{}Hz", hz);
+                    }
+                }
+            }
+        }
+
+        if monitor != "Unknown" {
+            return format!("{} — {} @ {}", monitor, resolution, refresh_rate);
+        }
+    }
+
+    // X11
+    if let Ok(output) = Command::new("xrandr").output()
+        && output.status.success()
+    {
+        let text = String::from_utf8_lossy(&output.stdout);
+
+        for line in text.lines() {
+            if line.contains(" connected") {
+                let parts: Vec<&str> = line.split_whitespace().collect();
+
+                let monitor = parts.first().unwrap_or(&"Unknown");
+
+                for part in &parts {
+                    if part.contains('x') && part.contains('+') {
+                        let mode = part.split('+').next().unwrap_or("Unknown");
+
+                        return format!("{} — {}", monitor, mode);
+                    }
+                }
+            }
+        }
+    }
+
+    "Unknown".to_string()
 }
 
 fn get_gpu() -> String {
     // NVIDIA
     if let Ok(output) = Command::new("nvidia-smi")
-        .args([
-            "--query-gpu=name",
-            "--format=csv,noheader",
-        ])
+        .args(["--query-gpu=name", "--format=csv,noheader"])
         .output()
+        && output.status.success()
     {
-        if output.status.success() {
-            let gpu = String::from_utf8_lossy(&output.stdout)
-                .trim()
-                .to_string();
+        let gpu = String::from_utf8_lossy(&output.stdout).trim().to_string();
 
-            if !gpu.is_empty() {
-                return gpu;
-            }
+        if !gpu.is_empty() {
+            return gpu;
         }
     }
 
@@ -107,13 +155,12 @@ fn get_gpu() -> String {
         for line in text.lines() {
             let lower = line.to_lowercase();
 
-            if lower.contains("vga compatible controller")
+            if (lower.contains("vga compatible controller")
                 || lower.contains("3d controller")
-                || lower.contains("display controller")
+                || lower.contains("display controller"))
+                && let Some((_, gpu)) = line.split_once(": ")
             {
-                if let Some((_, gpu)) = line.split_once(": ") {
-                    return gpu.to_string();
-                }
+                return gpu.to_string();
             }
         }
     }
@@ -122,16 +169,16 @@ fn get_gpu() -> String {
 }
 
 fn get_terminal() -> String {
-    if let Ok(term) = env::var("TERM_PROGRAM") {
-        if !term.is_empty() {
-            return term;
-        }
+    if let Ok(term) = env::var("TERM_PROGRAM")
+        && !term.is_empty()
+    {
+        return term;
     }
 
-    if let Ok(term) = env::var("TERM") {
-        if !term.is_empty() {
-            return term;
-        }
+    if let Ok(term) = env::var("TERM")
+        && !term.is_empty()
+    {
+        return term;
     }
 
     "Unknown".to_string()
@@ -160,27 +207,19 @@ fn main() {
     println!(
         "{} {}",
         "OS:".white().bold(),
-        System::name()
-            .unwrap_or("Unknown".into())
-            .blue()
+        System::name().unwrap_or("Unknown".into()).blue()
     );
 
     // Kernel
     println!(
         "{} {}",
         "Kernel:".white().bold(),
-        System::kernel_version()
-            .unwrap_or("Unknown".into())
-            .blue()
+        System::kernel_version().unwrap_or("Unknown".into()).blue()
     );
 
     // CPU
     if let Some(cpu) = sys.cpus().first() {
-        println!(
-            "{} {}",
-            "CPU:".white().bold(),
-            cpu.brand().blue()
-        );
+        println!("{} {}", "CPU:".white().bold(), cpu.brand().blue());
     }
 
     // RAM
@@ -197,11 +236,7 @@ fn main() {
     // WM
     let wm = get_desktop_environment();
 
-    println!(
-        "{} {}",
-        "WM:".white().bold(),
-        wm.blue()
-    );
+    println!("{} {}", "WM:".white().bold(), wm.blue());
 
     // Shell
     let shell = env::var("SHELL").unwrap_or_default();
@@ -211,50 +246,24 @@ fn main() {
         .unwrap_or_default()
         .to_string_lossy();
 
-    println!(
-        "{} {}",
-        "Shell:".white().bold(),
-        shell_name.blue()
-    );
+    println!("{} {}", "Shell:".white().bold(), shell_name.blue());
 
     // Terminal
     let terminal = get_terminal();
 
-    println!(
-        "{} {}",
-        "Terminal:".white().bold(),
-        terminal.blue()
-    );
-
-    // Host
-    let hostname = System::host_name()
-        .unwrap_or_else(|| "Unknown".to_string());
-
-    println!(
-        "{} {}",
-        "Host:".white().bold(),
-        hostname.blue()
-    );
+    println!("{} {}", "Terminal:".white().bold(), terminal.blue());
 
     // Display
     let display = get_display();
 
-    println!(
-        "{} {}",
-        "Display:".white().bold(),
-        display.blue()
-    );
+    println!("{} {}", "Display:".white().bold(), display.blue());
 
     // Packages
-    let packages = Command::new("pacman")
-        .arg("-Q")
-        .output();
+    let packages = Command::new("pacman").arg("-Q").output();
 
     match packages {
         Ok(output) => {
-            let count = String::from_utf8_lossy(&output.stdout)
-                .lines()
-                .count();
+            let count = String::from_utf8_lossy(&output.stdout).lines().count();
 
             println!(
                 "{} {}",
@@ -264,31 +273,17 @@ fn main() {
         }
 
         Err(_) => {
-            println!(
-                "{} {}",
-                "Packages:".white().bold(),
-                "Unknown".red()
-            );
+            println!("{} {}", "Packages:".white().bold(), "Unknown".red());
         }
     }
-    
+
     // GPU
     let gpu = get_gpu();
 
-    println!(
-        "{} {}",
-        "GPU:".white().bold(),
-        gpu.blue()
-    );
+    println!("{} {}", "GPU:".white().bold(), gpu.blue());
 
     // CPU Usage
     let cpu_usage = sys.global_cpu_info().cpu_usage();
-
-    println!(
-        "{} {}",
-        "CPU Usage:".white().bold(),
-        format!("{:.1}%", cpu_usage).blue()
-);
 
     println!(
         "{} {}",
@@ -327,5 +322,3 @@ fn main() {
         );
     }
 }
-    
-
