@@ -1,6 +1,6 @@
 [package]
-name = "kyuuriqfetch"
-version = "0.2.1"
+name = "kyuuriqstats"
+version = "0.2.2"
 edition = "2024"
 license = "MIT"
 
@@ -8,3 +8,5 @@ license = "MIT"
 sysinfo = "0.30"
 colored = "2"
 crossterm = "0.28"
+reqwest = { version = "0.12", features = ["blocking", "json"] }
+serde = { version = "1", features = ["derive"] }
