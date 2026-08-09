@@ -15,7 +15,10 @@ A simple system information fetcher written in Rust.
 - Shell
 - Uptime
 
+## Modules
 
+- Weather
+  
 ## Start 
 
 Add config.fish kyuuriqstats to the end
