@@ -86,7 +86,7 @@ fn print_stats() {
     println!(
         "{} {}",
         "│ Uptime ".white().bold(),
-        format!("{}h {}m │", hours, minutes).blue().bold()
+        format!("{}h {}m  │", hours, minutes).blue().bold()
     );
 
     println!("{}", "╰────────────────╯".blue());
