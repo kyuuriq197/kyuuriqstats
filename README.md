@@ -1,3 +1,5 @@
+<img width="317" height="559" alt="Screenshot from 2026-08-09 12-11-47" src="https://github.com/user-attachments/assets/046c339f-afda-4f6c-8f42-8ed08ad78062" />
+
 ## Warning
 
 Stable releases / Pre-releases and beta versions are published only on GitHub. 
@@ -9,21 +11,14 @@ A simple system information fetcher written in Rust.
 ## Features
 
 - OS
-- Kernel
-- CPU
-- RAM
-- GPU
-- Display
-- Window manager
+- Window Manager
 - Shell
-- Terminal
-- Packages
 - Uptime
-- Disks
+
 
 ## Start 
 
-Add config.fish kyuuriqstats/fetch to the end
+Add config.fish kyuuriqstats to the end
 
 ## Requirements
 
